@@ -28,7 +28,7 @@ export default function AllocationChart({ data }: { data: any[] }) {
             paddingAngle={5}
             dataKey="value"
             stroke="none"
-            label={({ percent }) => percent > 0.005 ? `${(percent * 100).toFixed(1)}%` : ''}
+            label={({ percent = 0 }) => percent > 0.005 ? `${(percent * 100).toFixed(1)}%` : ''}
             labelLine={{ stroke: '#475569', strokeWidth: 1 }}
           >
             {chartData.map((entry, index) => (
