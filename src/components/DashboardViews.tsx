@@ -47,6 +47,14 @@ export default function DashboardViews({
         return acc
       }, {} as Record<string, { name: string; currentValueKrw: number }>))
 
+  const accountTotalsKrw = holdings.reduce((acc, holding) => {
+    const accName = holding.account || 'Default'
+    acc[accName] = (acc[accName] || 0) + holding.currentValueKrw
+    return acc
+  }, {} as Record<string, number>)
+  const totalAllKrw = holdings.reduce((sum, h) => sum + h.currentValueKrw, 0)
+  const currentFilteredTotalKrw = filteredHoldings.reduce((sum, h) => sum + h.currentValueKrw, 0)
+
   return (
     <div className="space-y-6 w-full">
       <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
@@ -84,17 +92,30 @@ export default function DashboardViews({
           </button>
         </div>
 
-        {/* Account Selector */}
-        <select 
-          value={activeAccount}
-          onChange={(e) => setActiveAccount(e.target.value)}
-          className="bg-[#1e293b] border border-slate-800 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:max-w-xs cursor-pointer"
-        >
-          <option value="ALL_ACCOUNTS">All Accounts (전체 계좌)</option>
-          {uniqueAccounts.map(acc => (
-            <option key={acc} value={acc}>{acc}</option>
-          ))}
-        </select>
+        {/* Account Selector and Dynamic Value */}
+        <div className="flex flex-col md:flex-row items-end md:items-center space-y-2 md:space-y-0 md:space-x-4 w-full md:w-auto">
+          <div className="text-right">
+            <p className="text-xs text-slate-400 whitespace-nowrap">
+              {activeAccount === 'ALL_ACCOUNTS' 
+                ? (activeTab === 'ALL' ? '전체 계좌 자산 총액' : `${activeTab} 분류 자산 총액`)
+                : `'${activeAccount}' 계좌 평가액`
+              }
+            </p>
+            <p className="text-lg font-bold text-emerald-400">
+              ₩{currentFilteredTotalKrw.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </p>
+          </div>
+          <select 
+            value={activeAccount}
+            onChange={(e) => setActiveAccount(e.target.value)}
+            className="bg-[#1e293b] border border-slate-800 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto cursor-pointer"
+          >
+            <option value="ALL_ACCOUNTS">All Accounts ─ ₩{totalAllKrw.toLocaleString(undefined, { maximumFractionDigits: 0 })}</option>
+            {uniqueAccounts.map(acc => (
+              <option key={acc} value={acc}>{acc} ─ ₩{(accountTotalsKrw[acc] || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
