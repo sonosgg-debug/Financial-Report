@@ -10,7 +10,10 @@ export default async function DashboardPage() {
   ])
 
   const totalReturn = totalValue - totalCost
-  const totalReturnPct = totalCost > 0 ? (totalReturn / totalCost) * 100 : 0
+  const lastPoint = dailyAssets.data.length > 0 ? dailyAssets.data[dailyAssets.data.length - 1] : null;
+  const totalReturnPct = lastPoint && typeof lastPoint['return_Total'] === 'number' 
+    ? lastPoint['return_Total'] 
+    : (totalCost > 0 ? (totalReturn / totalCost) * 100 : 0)
   const isPositive = totalReturn >= 0
 
   return (
