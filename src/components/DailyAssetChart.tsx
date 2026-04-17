@@ -32,18 +32,47 @@ export default function DailyAssetChart({ data, accounts }: { data: DailyAssetPo
     )
   }
 
-  // Calculate ticks for YAxis (25,000,000 KRW increments)
-  let maxValue = 0;
+  // Calculate the overall min and max values across all plotted attributes
+  let minValue = Infinity;
+  let maxValue = -Infinity;
   for (const row of data) {
-    if (typeof row['Total'] === 'number' && row['Total'] > maxValue) {
-      maxValue = row['Total'];
+    for (const key of ['Total', ...accounts]) {
+      if (typeof row[key] === 'number') {
+        if (row[key] < minValue) minValue = row[key];
+        if (row[key] > maxValue) maxValue = row[key];
+      }
     }
   }
+  if (minValue === Infinity) {
+    minValue = 0;
+    maxValue = 0;
+  }
+
+  // Calculate dynamic step for nice tick intervals
+  const range = maxValue - minValue;
+  const rawStep = range > 0 ? range / 5 : 10000000;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const normalizedStep = rawStep / magnitude;
   
-  const STEP = 25000000; // 25,000,000
-  const maxTick = Math.ceil(maxValue / STEP) * STEP;
+  let stepMultiplier = 1;
+  if (normalizedStep <= 1) stepMultiplier = 1;
+  else if (normalizedStep <= 2) stepMultiplier = 2;
+  else if (normalizedStep <= 5) stepMultiplier = 5;
+  else stepMultiplier = 10;
+  
+  const STEP = stepMultiplier * magnitude;
+  
+  // Create a slight padding so the line doesn't completely touch the bottom/top
+  let minTick = Math.floor((minValue - STEP * 0.1) / STEP) * STEP;
+  let maxTick = Math.ceil((maxValue + STEP * 0.1) / STEP) * STEP;
+  
+  if (minTick === maxTick) {
+    minTick -= STEP;
+    maxTick += STEP;
+  }
+  
   const ticks: number[] = [];
-  for (let i = 0; i <= Math.max(maxTick, STEP); i += STEP) {
+  for (let i = minTick; i <= maxTick + (STEP / 2); i += STEP) {
     ticks.push(i);
   }
 
@@ -84,7 +113,7 @@ export default function DailyAssetChart({ data, accounts }: { data: DailyAssetPo
             tick={{ fill: '#94a3b8', fontSize: 12 }}
             width={85}
             ticks={ticks}
-            domain={[0, Math.max(maxTick, STEP)]}
+            domain={[minTick, maxTick]}
           />
           <Tooltip
             contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
