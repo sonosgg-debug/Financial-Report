@@ -51,18 +51,23 @@ export default function DailyReturnChart({ data, accounts }: { data: DailyAssetP
 
     if (slice.length === 0) return []
 
-    // Rebase data so that the start of the period is 0%
-    // true Return = ((Return_t / 100 + 1) / (Return_start / 100 + 1) - 1) * 100
-    const startPoint = slice[0]
+    const linesToTrack = [...accounts.map(a => `return_${a}`), 'return_Total', 'return_KOSPI', 'return_SP500']
     
+    // Find the first valid value in the slice for each line to use as baseline
+    const startValues: Record<string, number> = {}
+    for (const key of linesToTrack) {
+      const firstValidPt = slice.find(pt => typeof pt[key] === 'number')
+      if (firstValidPt) {
+        startValues[key] = firstValidPt[key] as number
+      }
+    }
+
     return slice.map(pt => {
       const newPt: any = { date: pt.date }
       
-      const linesToTrack = [...accounts.map(a => `return_${a}`), 'return_Total', 'return_KOSPI', 'return_SP500']
-      
       for (const key of linesToTrack) {
         const val = pt[key] as number
-        const startVal = startPoint[key] as number
+        const startVal = startValues[key]
         if (typeof val === 'number' && typeof startVal === 'number') {
           const rebased = (((val / 100 + 1) / (startVal / 100 + 1)) - 1) * 100
           newPt[key] = rebased
