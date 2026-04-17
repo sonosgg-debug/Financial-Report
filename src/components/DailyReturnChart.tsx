@@ -121,13 +121,14 @@ export default function DailyReturnChart({ data, accounts }: { data: DailyAssetP
             <Tooltip
               contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
               itemStyle={{ color: '#f8fafc', fontWeight: 600 }}
-              formatter={(value: number, name: string) => {
-                let displayName = name
-                if (name.startsWith('return_')) {
-                  displayName = name.replace('return_', '')
+              formatter={(value: any, name: any) => {
+                let displayName = String(name)
+                if (displayName.startsWith('return_')) {
+                  displayName = displayName.replace('return_', '')
                   if (displayName === 'Total') displayName = 'Total Return'
                 }
-                return [`${value > 0 ? '+' : ''}${value.toFixed(2)}%`, displayName]
+                const numValue = Number(value)
+                return [`${numValue > 0 ? '+' : ''}${numValue.toFixed(2)}%`, displayName]
               }}
               labelStyle={{ color: '#94a3b8', marginBottom: '8px' }}
             />

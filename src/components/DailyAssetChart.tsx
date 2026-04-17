@@ -89,9 +89,9 @@ export default function DailyAssetChart({ data, accounts }: { data: DailyAssetPo
           <Tooltip
             contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
             itemStyle={{ color: '#f8fafc', fontWeight: 600 }}
-            formatter={(value: number, name: string) => [
-              new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value),
-              name
+            formatter={(value: any, name: any) => [
+              new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(Number(value)),
+              String(name)
             ]}
           />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />

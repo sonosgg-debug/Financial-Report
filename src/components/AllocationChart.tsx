@@ -36,7 +36,7 @@ export default function AllocationChart({ data }: { data: any[] }) {
             ))}
           </Pie>
           <Tooltip 
-            formatter={(value: number) => `₩${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+            formatter={(value: any) => `₩${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
             contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc', borderRadius: '0.5rem' }}
           />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
