@@ -82,7 +82,7 @@ export default function DailyReturnChart({ data, accounts }: { data: DailyAssetP
   }
 
   return (
-    <div className="w-full flex flex-col h-full min-h-[450px]">
+    <div className="w-full flex flex-col h-full min-h-[300px] md:min-h-[450px]">
       <div className="flex justify-end mb-4">
         <div className="flex bg-[#0f172a] p-1 rounded-lg border border-slate-800">
           {(['1W', '1M', '3M', 'ALL'] as Period[]).map((p) => (

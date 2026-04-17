@@ -16,7 +16,7 @@ export default function AllocationChart({ data }: { data: any[] }) {
   })).sort((a, b) => b.value - a.value)
 
   return (
-    <div className="h-[380px] w-full">
+    <div className="h-[300px] md:h-[380px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie

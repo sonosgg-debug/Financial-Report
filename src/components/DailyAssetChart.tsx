@@ -59,7 +59,7 @@ export default function DailyAssetChart({ data, accounts }: { data: DailyAssetPo
   }
 
   return (
-    <div className="w-full h-full min-h-[400px]">
+    <div className="w-full h-full min-h-[300px] md:min-h-[400px]">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
