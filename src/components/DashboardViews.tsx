@@ -110,9 +110,9 @@ export default function DashboardViews({
             onChange={(e) => setActiveAccount(e.target.value)}
             className="bg-[#1e293b] border border-slate-800 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto cursor-pointer"
           >
-            <option value="ALL_ACCOUNTS">All Accounts ─ ₩{totalAllKrw.toLocaleString(undefined, { maximumFractionDigits: 0 })}</option>
+            <option value="ALL_ACCOUNTS">All Accounts (전체 계좌)</option>
             {uniqueAccounts.map(acc => (
-              <option key={acc} value={acc}>{acc} ─ ₩{(accountTotalsKrw[acc] || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</option>
+              <option key={acc} value={acc}>{acc}</option>
             ))}
           </select>
         </div>
