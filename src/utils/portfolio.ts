@@ -70,6 +70,9 @@ export async function getPortfolio() {
   const holdingsMap = new Map<string, { quantity: number; totalCost: number; currency: string; sector: string; account: string }>()
   const cashMap = new Map<string, { KRW: number, USD: number }>()
 
+  let netInvestedKRW = 0
+  let netInvestedUSD = 0
+
   for (const trade of trades) {
     const { ticker, type, quantity, price, currency, sector, account, fee } = trade
     const acc = account || 'Default'
@@ -83,9 +86,13 @@ export async function getPortfolio() {
 
     if (type === 'DEPOSIT') {
       cash[cur as 'KRW' | 'USD'] += amount
+      if (cur === 'USD') netInvestedUSD += amount
+      else netInvestedKRW += amount
       continue
     } else if (type === 'WITHDRAWAL') {
       cash[cur as 'KRW' | 'USD'] -= amount
+      if (cur === 'USD') netInvestedUSD -= amount
+      else netInvestedKRW -= amount
       continue
     } else if (type === 'BUY') {
       cash[cur as 'KRW' | 'USD'] -= (amount + tradeFee)
@@ -121,7 +128,6 @@ export async function getPortfolio() {
   // Fetch current prices
   const holdings: Holding[] = []
   let totalValue = 0
-  let aggregateCost = 0
 
   for (const [key, data] of holdingsMap.entries()) {
     // extract ticker from key (in case of something like 005930.KS_Default, we just want 005930.KS)
@@ -168,7 +174,6 @@ export async function getPortfolio() {
 
       // Convert USD to KRW for the aggregate totals
       totalValue += (currentValue * rate)
-      aggregateCost += (data.totalCost * rate)
     } catch (e) {
       console.warn(`Failed to fetch current price for ${ticker}: ${e instanceof Error ? e.message : 'Unknown error'}`)
       // fallback to average cost if price not found
@@ -202,7 +207,6 @@ export async function getPortfolio() {
         unrealizedReturnPct: 0
       })
       totalValue += (currentValue * rate)
-      aggregateCost += (data.totalCost * rate)
     }
   }
 
@@ -225,7 +229,6 @@ export async function getPortfolio() {
         unrealizedReturnPct: 0
       })
       totalValue += cash.KRW
-      aggregateCost += cash.KRW
     }
     if (cash.USD !== 0) {
       const krwValue = cash.USD * usdKrwRate
@@ -245,9 +248,11 @@ export async function getPortfolio() {
         unrealizedReturnPct: 0
       })
       totalValue += krwValue
-      aggregateCost += krwValue
     }
   }
 
-  return { holdings, totalValue, totalCost: aggregateCost }
+  const totalInvested = netInvestedKRW + (netInvestedUSD * usdKrwRate)
+
+  return { holdings, totalValue, totalCost: totalInvested }
 }
+
