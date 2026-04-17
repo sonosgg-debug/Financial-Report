@@ -31,9 +31,12 @@ export default function AllocationChart({ data }: { data: any[] }) {
             label={({ percent = 0 }) => percent > 0.005 ? `${(percent * 100).toFixed(1)}%` : ''}
             labelLine={{ stroke: '#475569', strokeWidth: 1 }}
           >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
+            {chartData.map((entry, index) => {
+              const isCash = entry.name === 'Cash' || (typeof entry.name === 'string' && entry.name.includes('현금'))
+              return (
+                <Cell key={`cell-${index}`} fill={isCash ? '#ffffff' : COLORS[index % COLORS.length]} />
+              )
+            })}
           </Pie>
           <Tooltip 
             formatter={(value: any) => `₩${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
