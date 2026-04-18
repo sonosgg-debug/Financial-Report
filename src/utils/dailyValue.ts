@@ -92,6 +92,7 @@ export async function getDailyAssetHistory() {
 
   // 4. Generate all dates from earliest trade to today
   const dailyPath: DailyAssetPoint[] = []
+  const tickerFirstDates: Record<string, string> = {}
   
   // Keep track of quantities per account per ticker and cash map
   const holdings: Record<string, Record<string, number>> = {}
@@ -152,6 +153,7 @@ export async function getDailyAssetHistory() {
         cashFlowsToday[acc] -= isKrw ? amount : amount * currentFx
         totalCashFlowToday -= isKrw ? amount : amount * currentFx
       } else if (t.type === 'BUY') {
+        if (!tickerFirstDates[t.ticker]) tickerFirstDates[t.ticker] = t.trade_date
         holdings[acc][t.ticker] += qty
         cash[acc][cur] -= (amount + fee)
       } else if (t.type === 'SELL') {
@@ -180,6 +182,14 @@ export async function getDailyAssetHistory() {
 
     // Compute value for each account
     const point: DailyAssetPoint = { date: dateStr }
+    
+    // Attach prices of all tracked tickers and benchmarks
+    for (const ticker of allTickersToTrack) {
+      if (lastKnownPrice[ticker] !== undefined) {
+        point[`price_${ticker}`] = lastKnownPrice[ticker]
+      }
+    }
+
     let hasValue = false
 
     for (const acc of accounts) {
@@ -259,6 +269,7 @@ export async function getDailyAssetHistory() {
 
   return {
     data: dailyPath,
-    accounts
+    accounts,
+    tickerFirstDates
   }
 }

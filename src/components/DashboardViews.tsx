@@ -4,6 +4,7 @@ import { useState } from 'react'
 import AllocationChart from '@/components/AllocationChart'
 import DailyAssetChart from '@/components/DailyAssetChart'
 import DailyReturnChart from '@/components/DailyReturnChart'
+import StockReturnChart from '@/components/StockReturnChart'
 import { DailyAssetPoint } from '@/utils/dailyValue'
 
 type TabType = 'ALL' | 'US' | 'KR'
@@ -13,7 +14,7 @@ export default function DashboardViews({
   dailyAssets 
 }: { 
   holdings: any[], 
-  dailyAssets: { data: DailyAssetPoint[], accounts: string[] } 
+  dailyAssets: { data: DailyAssetPoint[], accounts: string[], tickerFirstDates?: Record<string, string> } 
 }) {
   const [activeTab, setActiveTab] = useState<TabType>('ALL')
 
@@ -187,6 +188,14 @@ export default function DashboardViews({
         <p className="text-xs md:text-sm text-slate-400 mb-4 md:mb-6">순수 펀드 운용 수익률 (입출금 왜곡 방지 적용)</p>
         <div className="h-[300px] md:h-[450px]">
           <DailyReturnChart data={dailyAssets.data} accounts={dailyAssets.accounts} />
+        </div>
+      </div>
+
+      <div className="bg-[#1e293b] rounded-2xl border border-slate-800 p-4 md:p-6 shadow-sm w-full">
+        <h2 className="text-lg md:text-xl font-semibold text-slate-100 mb-2">Individual Stock Return (%)</h2>
+        <p className="text-xs md:text-sm text-slate-400 mb-4 md:mb-6">개별 종목 최초 매수일 기준 수익률 (vs KOSPI/S&P 500)</p>
+        <div className="h-[300px] md:h-[450px]">
+          <StockReturnChart data={dailyAssets.data} tickerFirstDates={dailyAssets.tickerFirstDates || {}} holdings={holdings} />
         </div>
       </div>
     </div>
