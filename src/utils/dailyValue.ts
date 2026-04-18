@@ -96,15 +96,18 @@ export async function getDailyAssetHistory() {
   
   // Keep track of quantities per account per ticker and cash map
   const holdings: Record<string, Record<string, number>> = {}
+  const totalCostMap: Record<string, Record<string, number>> = {}
   const cash: Record<string, Record<string, number>> = {}
   for (const acc of accounts) {
     holdings[acc] = {}
+    totalCostMap[acc] = {}
     cash[acc] = { KRW: 0, USD: 0 }
   }
 
   // Current iteration state
   let currentFx = 1350 // fallback fx
   const lastKnownPrice: Record<string, number> = {}
+  const lastKnownAvgCost: Record<string, number> = {}
   let tradeIdx = 0
 
   // TWR State tracking
@@ -155,9 +158,13 @@ export async function getDailyAssetHistory() {
       } else if (t.type === 'BUY') {
         if (!tickerFirstDates[t.ticker]) tickerFirstDates[t.ticker] = t.trade_date
         holdings[acc][t.ticker] += qty
+        totalCostMap[acc][t.ticker] = (totalCostMap[acc][t.ticker] || 0) + amount
         cash[acc][cur] -= (amount + fee)
       } else if (t.type === 'SELL') {
+        const curQty = holdings[acc][t.ticker] || 0
+        const avgCost = curQty > 0 ? (totalCostMap[acc][t.ticker] || 0) / curQty : 0
         holdings[acc][t.ticker] -= qty
+        totalCostMap[acc][t.ticker] = (totalCostMap[acc][t.ticker] || 0) - (qty * avgCost)
         cash[acc][cur] += (amount - fee)
       }
 
@@ -187,6 +194,24 @@ export async function getDailyAssetHistory() {
     for (const ticker of allTickersToTrack) {
       if (lastKnownPrice[ticker] !== undefined) {
         point[`price_${ticker}`] = lastKnownPrice[ticker]
+      }
+    }
+
+    // Attach avg_cost for all portfolio tickers based on current holdings
+    for (const ticker of tickers) {
+      let totalCostForTicker = 0;
+      let totalQtyForTicker = 0;
+      for (const acc of accounts) {
+        totalCostForTicker += (totalCostMap[acc]?.[ticker] || 0);
+        totalQtyForTicker += (holdings[acc]?.[ticker] || 0);
+      }
+      
+      if (totalQtyForTicker > 1e-6) {
+        const avgCost = totalCostForTicker / totalQtyForTicker;
+        point[`avg_cost_${ticker}`] = avgCost;
+        lastKnownAvgCost[ticker] = avgCost;
+      } else if (lastKnownAvgCost[ticker] !== undefined) {
+        point[`avg_cost_${ticker}`] = lastKnownAvgCost[ticker];
       }
     }
 

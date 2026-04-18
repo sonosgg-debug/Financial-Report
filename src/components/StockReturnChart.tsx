@@ -61,12 +61,6 @@ export default function StockReturnChart({
     const startPt = slice[0]
     
     // Baselines: find the first available price for each asset from the first date onwards
-    let startPriceStock = startPt[`price_${selectedTicker}`] as number
-    if (typeof startPriceStock !== 'number') {
-      const valid = slice.find(pt => typeof pt[`price_${selectedTicker}`] === 'number')
-      if (valid) startPriceStock = valid[`price_${selectedTicker}`] as number
-    }
-
     let startPriceKospi = startPt['price_^KS11'] as number
     if (typeof startPriceKospi !== 'number') {
       const valid = slice.find(pt => typeof pt['price_^KS11'] === 'number')
@@ -79,12 +73,13 @@ export default function StockReturnChart({
       if (valid) startPriceSp500 = valid['price_^GSPC'] as number
     }
 
-    return slice.map(pt => {
+    return slice.map((pt: any) => {
       const newPt: any = { date: pt.date }
       
       const vStock = pt[`price_${selectedTicker}`] as number
-      if (typeof vStock === 'number' && typeof startPriceStock === 'number' && startPriceStock > 0) {
-        newPt[`return_${selectedTicker}`] = ((vStock / startPriceStock) - 1) * 100
+      const avgCostStock = pt[`avg_cost_${selectedTicker}`] as number
+      if (typeof vStock === 'number' && typeof avgCostStock === 'number' && avgCostStock > 0) {
+        newPt[`return_${selectedTicker}`] = ((vStock / avgCostStock) - 1) * 100
       }
 
       const vKospi = pt['price_^KS11'] as number

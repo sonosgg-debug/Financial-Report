@@ -193,7 +193,7 @@ export default function DashboardViews({
 
       <div className="bg-[#1e293b] rounded-2xl border border-slate-800 p-4 md:p-6 shadow-sm w-full">
         <h2 className="text-lg md:text-xl font-semibold text-slate-100 mb-2">Individual Stock Return (%)</h2>
-        <p className="text-xs md:text-sm text-slate-400 mb-4 md:mb-6">개별 종목 최초 매수일 기준 수익률 (vs KOSPI/S&P 500)</p>
+        <p className="text-xs md:text-sm text-slate-400 mb-4 md:mb-6">개별 종목 평균 매수 단가 기준 수익률 (vs KOSPI/S&P 500)</p>
         <div className="h-[300px] md:h-[450px]">
           <StockReturnChart data={dailyAssets.data} tickerFirstDates={dailyAssets.tickerFirstDates || {}} holdings={holdings} />
         </div>
