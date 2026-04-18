@@ -26,6 +26,20 @@ export default async function DashboardPage() {
         <div className="bg-[#1e293b] rounded-xl border border-slate-800 p-4 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between text-slate-400 mb-2 md:mb-3">
             <h3 className="text-sm font-medium">Total Balance</h3>
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              className="w-4 h-4 text-slate-400"
+            >
+              <path d="M6 5l3 14 3-8 3 8 3-14" />
+              <path d="M4 10h16" />
+              <path d="M4 14h16" />
+            </svg>
           </div>
           <p className="text-2xl md:text-3xl font-semibold text-white tracking-tight">
             ₩{totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
