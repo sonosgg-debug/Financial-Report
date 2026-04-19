@@ -41,6 +41,21 @@ export type Holding = {
   unrealizedReturnPct: number
 }
 
+export type CompletedTrade = {
+  ticker: string
+  name: string
+  account: string
+  currency: string
+  quantity: number
+  averageBuyPrice: number
+  averageSellPrice: number
+  profitPerShare: number
+  returnPct: number
+  firstBuyDate: string
+  lastSellDate: string
+  holdingPeriodDays: number
+}
+
 export async function getPortfolio() {
   const supabase = await createClient()
 
@@ -67,7 +82,19 @@ export async function getPortfolio() {
   }
 
   // Calculate holdings and cash
-  const holdingsMap = new Map<string, { quantity: number; totalCost: number; currency: string; sector: string; account: string }>()
+  const allStocksMap = new Map<string, { 
+    quantity: number; 
+    totalCost: number; 
+    currency: string; 
+    sector: string; 
+    account: string;
+    totalBuyQuantity: number;
+    totalBuyAmount: number;
+    totalSellQuantity: number;
+    totalSellAmount: number;
+    firstBuyDate: string | null;
+    lastSellDate: string | null;
+  }>()
   const cashMap = new Map<string, { KRW: number, USD: number }>()
 
   let netInvestedKRW = 0
@@ -102,7 +129,19 @@ export async function getPortfolio() {
 
     // Now proceed with stock holding map...
     const key = `${ticker}_${acc}`
-    const current = holdingsMap.get(key) || { quantity: 0, totalCost: 0, currency: cur, sector: sector || 'Uncategorized', account: acc }
+    const current = allStocksMap.get(key) || { 
+      quantity: 0, 
+      totalCost: 0, 
+      currency: cur, 
+      sector: sector || 'Uncategorized', 
+      account: acc,
+      totalBuyQuantity: 0,
+      totalBuyAmount: 0,
+      totalSellQuantity: 0,
+      totalSellAmount: 0,
+      firstBuyDate: null,
+      lastSellDate: null
+    }
     
     if (sector && sector !== 'Uncategorized') {
       current.sector = sector
@@ -111,29 +150,95 @@ export async function getPortfolio() {
     if (type === 'BUY') {
       current.quantity += Number(quantity)
       current.totalCost += amount
+      current.totalBuyQuantity += Number(quantity)
+      current.totalBuyAmount += amount
+      if (!current.firstBuyDate || trade.trade_date < current.firstBuyDate) {
+        current.firstBuyDate = trade.trade_date
+      }
     } else if (type === 'SELL') {
       // Approximate avg cost reduction
       const avgCost = current.quantity > 0 ? current.totalCost / current.quantity : 0
       current.quantity -= Number(quantity)
       current.totalCost -= Number(quantity) * avgCost
+      
+      current.totalSellQuantity += Number(quantity)
+      current.totalSellAmount += amount
+      if (!current.lastSellDate || trade.trade_date > current.lastSellDate) {
+        current.lastSellDate = trade.trade_date
+      }
     }
 
-    if (current.quantity > 0) {
-      holdingsMap.set(key, current)
-    } else {
-      holdingsMap.delete(key)
+    allStocksMap.set(key, current)
+  }
+
+  // Split into holdings and completed trades
+  const holdingsMap = new Map()
+  const completedMap = new Map()
+
+  for (const [key, data] of allStocksMap.entries()) {
+    if (data.quantity > 1e-6) {
+      holdingsMap.set(key, data)
+    } else if (data.totalBuyQuantity > 0 && data.quantity <= 1e-6) {
+      completedMap.set(key, data)
     }
   }
 
   // Fetch current prices
   const holdings: Holding[] = []
+  
+  // Process completed trades
+  const completedTradesPromises = Array.from(completedMap.entries()).map(async ([key, data]) => {
+    const ticker = key.substring(0, key.lastIndexOf('_'))
+    const isKorean = ticker.endsWith('.KS') || ticker.endsWith('.KQ') || ticker.endsWith('.ks') || ticker.endsWith('.kq');
+    let displayName = ticker;
+    if (isKorean) {
+      const koName = await getKoreanName(ticker);
+      if (koName) displayName = koName;
+    } else {
+      try {
+        const quote = await yahooFinance.quote(ticker).catch(() => null) as any
+        if (quote && (quote.shortName || quote.longName)) {
+          displayName = quote.shortName || quote.longName || ticker
+        }
+      } catch (e) {}
+    }
+
+    const averageBuyPrice = data.totalBuyQuantity > 0 ? data.totalBuyAmount / data.totalBuyQuantity : 0
+    const averageSellPrice = data.totalSellQuantity > 0 ? data.totalSellAmount / data.totalSellQuantity : 0
+    const profitPerShare = averageSellPrice - averageBuyPrice
+    const returnPct = averageBuyPrice > 0 ? (profitPerShare / averageBuyPrice) * 100 : 0
+    
+    let holdingPeriodDays = 0
+    if (data.firstBuyDate && data.lastSellDate) {
+      const ms = new Date(data.lastSellDate).getTime() - new Date(data.firstBuyDate).getTime()
+      holdingPeriodDays = Math.max(0, Math.floor(ms / (1000 * 3600 * 24)))
+    }
+
+    return {
+      ticker,
+      name: displayName,
+      account: data.account,
+      currency: data.currency,
+      quantity: data.totalBuyQuantity,
+      averageBuyPrice,
+      averageSellPrice,
+      profitPerShare,
+      returnPct,
+      firstBuyDate: data.firstBuyDate || '',
+      lastSellDate: data.lastSellDate || '',
+      holdingPeriodDays
+    }
+  })
+  
+  const completedTrades = await Promise.all(completedTradesPromises)
+
   let totalValue = 0
 
   for (const [key, data] of holdingsMap.entries()) {
     // extract ticker from key (in case of something like 005930.KS_Default, we just want 005930.KS)
     const ticker = key.substring(0, key.lastIndexOf('_'))
     try {
-      const quote = await yahooFinance.quote(ticker).catch(() => null)
+      const quote = await yahooFinance.quote(ticker).catch(() => null) as any
       if (!quote || !quote.regularMarketPrice) {
         throw new Error(`Quote not found or missing price for ${ticker}`)
       }
@@ -253,6 +358,9 @@ export async function getPortfolio() {
 
   const totalInvested = netInvestedKRW + (netInvestedUSD * usdKrwRate)
 
-  return { holdings, totalValue, totalCost: totalInvested }
+  // Sort completed trades by lastSellDate descending
+  completedTrades.sort((a, b) => new Date(b.lastSellDate).getTime() - new Date(a.lastSellDate).getTime())
+
+  return { holdings, completedTrades, totalValue, totalCost: totalInvested }
 }
 

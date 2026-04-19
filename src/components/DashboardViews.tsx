@@ -5,15 +5,19 @@ import AllocationChart from '@/components/AllocationChart'
 import DailyAssetChart from '@/components/DailyAssetChart'
 import DailyReturnChart from '@/components/DailyReturnChart'
 import StockReturnChart from '@/components/StockReturnChart'
+import CompletedTradesTable from '@/components/CompletedTradesTable'
+import { CompletedTrade } from '@/utils/portfolio'
 import { DailyAssetPoint } from '@/utils/dailyValue'
 
 type TabType = 'ALL' | 'US' | 'KR'
 
 export default function DashboardViews({ 
   holdings, 
+  completedTrades = [],
   dailyAssets 
 }: { 
   holdings: any[], 
+  completedTrades?: CompletedTrade[],
   dailyAssets: { data: DailyAssetPoint[], accounts: string[], tickerFirstDates?: Record<string, string> } 
 }) {
   const [activeTab, setActiveTab] = useState<TabType>('ALL')
@@ -210,6 +214,10 @@ export default function DashboardViews({
         <div className="h-[300px] md:h-[450px]">
           <StockReturnChart data={dailyAssets.data} tickerFirstDates={dailyAssets.tickerFirstDates || {}} holdings={holdings} />
         </div>
+      </div>
+
+      <div className="bg-[#1e293b] rounded-2xl border border-slate-800 p-4 md:p-6 shadow-sm w-full">
+        <CompletedTradesTable completedTrades={completedTrades} accounts={dailyAssets.accounts} />
       </div>
     </div>
   )

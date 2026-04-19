@@ -4,7 +4,7 @@ import { TrendingUp, TrendingDown, PieChart as PieChartIcon } from 'lucide-react
 import DashboardViews from '@/components/DashboardViews'
 
 export default async function DashboardPage() {
-  const [ { holdings, totalValue, totalCost }, dailyAssets ] = await Promise.all([
+  const [ { holdings, completedTrades, totalValue, totalCost }, dailyAssets ] = await Promise.all([
     getPortfolio(),
     getDailyAssetHistory()
   ])
@@ -72,7 +72,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <DashboardViews holdings={holdings} dailyAssets={dailyAssets} />
+      <DashboardViews holdings={holdings} completedTrades={completedTrades} dailyAssets={dailyAssets} />
     </div>
   )
 }
