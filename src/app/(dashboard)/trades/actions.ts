@@ -34,6 +34,30 @@ export async function addTrade(formData: FormData) {
     }
   }
 
+  if (type === 'SELL') {
+    const { data: pastTrades, error: fetchError } = await supabase
+      .from('trades')
+      .select('type, quantity')
+      .eq('id', user.id)
+      .eq('ticker', ticker.toUpperCase())
+      .eq('account', account)
+
+    if (fetchError) {
+      console.error('Error fetching holdings: ', fetchError)
+      return { error: '보유 수량 확인 중 오류가 발생했습니다.' }
+    }
+
+    let currentQuantity = 0
+    pastTrades?.forEach(trade => {
+      if (trade.type === 'BUY') currentQuantity += trade.quantity
+      else if (trade.type === 'SELL') currentQuantity -= trade.quantity
+    })
+
+    if (currentQuantity < quantity) {
+      return { error: `매도 수량 오류: 현재 [${account}] 계좌의 [${ticker.toUpperCase()}] 보유 수량은 ${currentQuantity}주 입니다. (입력 수량: ${quantity}주)` }
+    }
+  }
+
   const { error } = await supabase
     .from('trades')
     .insert([
@@ -54,11 +78,12 @@ export async function addTrade(formData: FormData) {
 
   if (error) {
     console.error('Error adding trade: ', error)
-    throw new Error('Failed to add trade')
+    return { error: 'Failed to add trade' }
   }
 
   revalidatePath('/trades')
   revalidatePath('/')
+  return { success: true }
 }
 
 export async function updateTrade(formData: FormData) {

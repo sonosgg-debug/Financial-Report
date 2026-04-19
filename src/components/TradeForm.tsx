@@ -12,11 +12,15 @@ export default function TradeForm() {
   async function handleSubmit(formData: FormData) {
     setLoading(true)
     try {
-      await addTrade(formData)
+      const result = await addTrade(formData)
+      if (result && result.error) {
+        alert(result.error)
+        return
+      }
       formRef.current?.reset()
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
-      alert("Failed to add trade.")
+      alert(e.message || "Failed to add trade.")
     } finally {
       setLoading(false)
     }
@@ -109,6 +113,7 @@ export default function TradeForm() {
             type="number" 
             name="price"
             step="0.01"
+            min="0"
             required
             className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
@@ -120,6 +125,7 @@ export default function TradeForm() {
               type="number" 
               name="quantity"
               step="0.0001"
+              min="0"
               required
               className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
@@ -132,6 +138,7 @@ export default function TradeForm() {
               type="number" 
               name="fee"
               step="0.01"
+              min="0"
               defaultValue={0}
               className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
