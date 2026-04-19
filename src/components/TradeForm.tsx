@@ -9,9 +9,11 @@ export default function TradeForm() {
   const [tradeType, setTradeType] = useState('BUY')
   const isCashFlow = tradeType === 'DEPOSIT' || tradeType === 'WITHDRAWAL'
 
-  async function handleSubmit(formData: FormData) {
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
     setLoading(true)
     try {
+      const formData = new FormData(event.currentTarget)
       const result = await addTrade(formData)
       if (result && result.error) {
         alert(result.error)
@@ -27,7 +29,7 @@ export default function TradeForm() {
   }
 
   return (
-    <form ref={formRef} action={handleSubmit} className="flex flex-col gap-4">
+    <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="mb-4">
         <div>
           <label className="block text-sm font-medium text-slate-400 mb-1">Account / 계좌</label>
