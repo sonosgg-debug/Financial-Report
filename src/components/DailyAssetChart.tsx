@@ -23,8 +23,28 @@ const COLORS = [
   '#f97316', // orange-500
 ]
 
-export default function DailyAssetChart({ data, accounts }: { data: DailyAssetPoint[], accounts: string[] }) {
-  if (!data || data.length === 0) {
+export default function DailyAssetChart({ data, accounts, selectedAccount = 'ALL_ACCOUNTS' }: { data: DailyAssetPoint[], accounts: string[], selectedAccount?: string }) {
+  let displayData = data;
+  let linesToShow = accounts;
+  let showTotal = true;
+
+  if (selectedAccount && selectedAccount !== 'ALL_ACCOUNTS') {
+    linesToShow = [selectedAccount];
+    showTotal = false;
+
+    const firstIndex = data.findIndex(row => {
+      const val = row[selectedAccount];
+      return typeof val === 'number' && val !== 0;
+    });
+
+    if (firstIndex !== -1) {
+      displayData = data.slice(firstIndex);
+    } else {
+      displayData = [];
+    }
+  }
+
+  if (!displayData || displayData.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-slate-500 min-h-[300px]">
         No historical data available.
@@ -35,8 +55,9 @@ export default function DailyAssetChart({ data, accounts }: { data: DailyAssetPo
   // Calculate the overall min and max values across all plotted attributes
   let minValue = Infinity;
   let maxValue = -Infinity;
-  for (const row of data) {
-    for (const key of ['Total', ...accounts]) {
+  for (const row of displayData) {
+    const keysToCheck = showTotal ? ['Total', ...accounts] : linesToShow;
+    for (const key of keysToCheck) {
       if (typeof row[key] === 'number') {
         if (row[key] < minValue) minValue = row[key];
         if (row[key] > maxValue) maxValue = row[key];
@@ -91,7 +112,7 @@ export default function DailyAssetChart({ data, accounts }: { data: DailyAssetPo
     <div className="w-full h-full min-h-[300px] md:min-h-[400px]">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
-          data={data}
+          data={displayData}
           margin={{
             top: 10,
             right: 30,
@@ -124,29 +145,34 @@ export default function DailyAssetChart({ data, accounts }: { data: DailyAssetPo
             ]}
           />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
-          {accounts.map((account, index) => (
+          {showTotal && (
             <Line
-              key={account}
+              key="Total"
               type="monotone"
-              dataKey={account}
-              name={account}
-              stroke={COLORS[index % COLORS.length]}
-              strokeWidth={2}
+              dataKey="Total"
+              name="Total Assets (총 자산)"
+              stroke="#ef4444" // red
+              strokeWidth={4}
               dot={false}
-              activeDot={{ r: 6 }}
+              activeDot={{ r: 8 }}
             />
-          ))}
-          {/* Total Assets Line */}
-          <Line
-            key="Total"
-            type="monotone"
-            dataKey="Total"
-            name="Total Assets (총 자산)"
-            stroke="#ef4444" // red
-            strokeWidth={4}
-            dot={false}
-            activeDot={{ r: 8 }}
-          />
+          )}
+          {linesToShow.map((account, index) => {
+            const accountOriginalIndex = accounts.indexOf(account);
+            const colorIndex = accountOriginalIndex !== -1 ? accountOriginalIndex : index;
+            return (
+              <Line
+                key={account}
+                type="monotone"
+                dataKey={account}
+                name={account}
+                stroke={COLORS[colorIndex % COLORS.length]}
+                strokeWidth={showTotal ? 2 : 3}
+                dot={false}
+                activeDot={{ r: showTotal ? 6 : 8 }}
+              />
+            );
+          })}
         </LineChart>
       </ResponsiveContainer>
     </div>

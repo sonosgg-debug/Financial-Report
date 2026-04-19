@@ -20,6 +20,7 @@ export default function DashboardViews({
 
   const [activeAccount, setActiveAccount] = useState<string>('ALL_ACCOUNTS')
   const [chartGroup, setChartGroup] = useState<'SECTOR' | 'TICKER'>('TICKER')
+  const [dailyAssetAccount, setDailyAssetAccount] = useState<string>('ALL_ACCOUNTS')
 
   const uniqueAccounts = Array.from(new Set(holdings.map(h => h.account || 'Default')))
 
@@ -177,9 +178,21 @@ export default function DashboardViews({
       </div>
 
       <div className="bg-[#1e293b] rounded-2xl border border-slate-800 p-4 md:p-6 shadow-sm">
-        <h2 className="text-lg md:text-xl font-semibold text-slate-100 mb-4 md:mb-6">Daily Asset Value (KRW)</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
+          <h2 className="text-lg md:text-xl font-semibold text-slate-100">Daily Asset Value (KRW)</h2>
+          <select 
+            value={dailyAssetAccount}
+            onChange={(e) => setDailyAssetAccount(e.target.value)}
+            className="bg-[#0f172a] border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto cursor-pointer"
+          >
+            <option value="ALL_ACCOUNTS">All Accounts (전체 계좌)</option>
+            {dailyAssets.accounts.map(acc => (
+              <option key={acc} value={acc}>{acc}</option>
+            ))}
+          </select>
+        </div>
         <div className="h-[300px] md:h-[400px]">
-          <DailyAssetChart data={dailyAssets.data} accounts={dailyAssets.accounts} />
+          <DailyAssetChart data={dailyAssets.data} accounts={dailyAssets.accounts} selectedAccount={dailyAssetAccount} />
         </div>
       </div>
 
