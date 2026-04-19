@@ -117,6 +117,8 @@ export default function TradeList({ trades }: { trades: any[] }) {
           })}
         </tbody>
       </table>
+      </div>
+      )}
 
       {editingTrade && (
         <EditTradeModal 
