@@ -28,9 +28,6 @@ export default async function TradesPage() {
         </div>
 
         <div className="lg:col-span-2 bg-[#1e293b] rounded-2xl border border-slate-800 overflow-hidden shadow-sm">
-          <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-             <h2 className="text-xl font-semibold text-slate-100">All Transactions</h2>
-          </div>
           <TradeList trades={trades || []} />
         </div>
       </div>

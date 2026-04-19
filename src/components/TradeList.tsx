@@ -8,17 +8,41 @@ import { deleteTrade } from '@/app/(dashboard)/trades/actions'
 
 export default function TradeList({ trades }: { trades: any[] }) {
   const [editingTrade, setEditingTrade] = useState<any | null>(null)
-  
-  if (!trades || trades.length === 0) {
-    return (
-      <div className="p-8 text-center text-slate-500">
-        No trades recorded yet. Start by adding one on the right.
-      </div>
-    )
-  }
+  const [selectedAccount, setSelectedAccount] = useState<string>('All')
+
+  const accounts = ['All', ...Array.from(new Set(trades?.map(t => t.account || 'Default') || [])).sort() as string[]]
+
+  const filteredTrades = trades?.filter(t => 
+    selectedAccount === 'All' ? true : (t.account || 'Default') === selectedAccount
+  ) || []
 
   return (
-    <div className="overflow-x-auto">
+    <div className="flex flex-col">
+      <div className="p-6 border-b border-slate-800 flex justify-between items-center gap-4">
+        <h2 className="text-xl font-semibold text-slate-100">All Transactions</h2>
+        {trades && trades.length > 0 && (
+          <select 
+            value={selectedAccount}
+            onChange={(e) => setSelectedAccount(e.target.value)}
+            className="bg-[#0f172a] border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer"
+          >
+            {accounts.map(acc => (
+              <option key={acc} value={acc}>{acc === 'All' ? '전체 계좌 (All)' : acc}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {!trades || trades.length === 0 ? (
+        <div className="p-8 text-center text-slate-500">
+          No trades recorded yet. Start by adding one on the right.
+        </div>
+      ) : filteredTrades.length === 0 ? (
+        <div className="p-8 text-center text-slate-500">
+          No trades found for this account.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="bg-[#0f172a] text-slate-400 text-xs md:text-sm uppercase tracking-wider">
@@ -32,7 +56,7 @@ export default function TradeList({ trades }: { trades: any[] }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800">
-          {trades.map((trade) => {
+          {filteredTrades.map((trade) => {
             const isBuy = trade.type === 'BUY'
             const curSymbol = trade.currency === 'USD' ? '$' : '₩'
             const isKrw = trade.currency === 'KRW'
