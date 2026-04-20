@@ -41,23 +41,51 @@ export default function DailyReturnChart({
   const processedData = useMemo(() => {
     if (!data || data.length === 0) return []
 
-    let startDate = new Date(data[0].date)
-    const endDate = new Date(data[data.length - 1].date)
+    let relevantData = data
+    if (selectedAccount !== 'ALL_ACCOUNTS') {
+      const prefix = returnType === 'TWR' ? 'return_' : 'mwr_'
+      const accountKey = `${prefix}${selectedAccount}`
+      
+      // Find the first day the return actually moved from 0% (indicating active stock holding)
+      const actualMoveIdx = data.findIndex((pt: any) => typeof pt[accountKey] === 'number' && pt[accountKey] !== 0)
+      
+      if (actualMoveIdx !== -1) {
+        // Step back up to 1 day to anchor the line at 0%
+        let startIdx = actualMoveIdx > 0 ? actualMoveIdx - 1 : 0
+        relevantData = data.slice(startIdx)
+      } else {
+        // If it never moved from 0 (e.g. only cash exists), find when cash was first deposited
+        const firstAssetIdx = data.findIndex((pt: any) => typeof pt[selectedAccount] === 'number' && pt[selectedAccount] > 0)
+        if (firstAssetIdx !== -1) {
+          relevantData = data.slice(firstAssetIdx)
+        } else {
+          relevantData = []
+        }
+      }
+    }
+
+    if (relevantData.length === 0) return []
+
+    let startDate = new Date(relevantData[0].date)
+    const endDate = new Date(relevantData[relevantData.length - 1].date)
 
     if (period === '1W') {
-      startDate = new Date(endDate)
-      startDate.setDate(endDate.getDate() - 7)
+      const targetDate = new Date(endDate)
+      targetDate.setDate(endDate.getDate() - 7)
+      if (targetDate > startDate) startDate = targetDate
     } else if (period === '1M') {
-      startDate = new Date(endDate)
-      startDate.setMonth(endDate.getMonth() - 1)
+      const targetDate = new Date(endDate)
+      targetDate.setMonth(endDate.getMonth() - 1)
+      if (targetDate > startDate) startDate = targetDate
     } else if (period === '3M') {
-      startDate = new Date(endDate)
-      startDate.setMonth(endDate.getMonth() - 3)
+      const targetDate = new Date(endDate)
+      targetDate.setMonth(endDate.getMonth() - 3)
+      if (targetDate > startDate) startDate = targetDate
     }
 
     const startStr = startDate.toISOString().split('T')[0]
-    const startIndex = data.findIndex(d => d.date >= startStr)
-    const slice = data.slice(startIndex !== -1 ? startIndex : 0)
+    const startIndex = relevantData.findIndex(d => d.date >= startStr)
+    const slice = relevantData.slice(startIndex !== -1 ? startIndex : 0)
 
     if (slice.length === 0) return []
 

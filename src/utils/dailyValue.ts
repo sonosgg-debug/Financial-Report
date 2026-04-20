@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import YahooFinance from 'yahoo-finance2'
 
-const yahooFinance = new YahooFinance()
+const yahooFinance = new YahooFinance({ validation: { logErrors: false } })
 
 export type DailyAssetPoint = {
   date: string
