@@ -25,6 +25,8 @@ export default function DashboardViews({
   const [activeAccount, setActiveAccount] = useState<string>('ALL_ACCOUNTS')
   const [chartGroup, setChartGroup] = useState<'SECTOR' | 'TICKER'>('TICKER')
   const [dailyAssetAccount, setDailyAssetAccount] = useState<string>('ALL_ACCOUNTS')
+  const [returnChartType, setReturnChartType] = useState<'TWR' | 'MWR'>('TWR')
+  const [returnChartAccount, setReturnChartAccount] = useState<string>('ALL_ACCOUNTS')
 
   const uniqueAccounts = Array.from(new Set(holdings.map(h => h.account || 'Default')))
 
@@ -201,10 +203,36 @@ export default function DashboardViews({
       </div>
 
       <div className="bg-[#1e293b] rounded-2xl border border-slate-800 p-4 md:p-6 shadow-sm w-full">
-        <h2 className="text-lg md:text-xl font-semibold text-slate-100 mb-2">Daily Cumulative Return (%) - Time Weighted</h2>
-        <p className="text-xs md:text-sm text-slate-400 mb-4 md:mb-6">순수 펀드 운용 수익률 (입출금 왜곡 방지 적용)</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-3">
+          <h2 className="text-lg md:text-xl font-semibold text-slate-100">
+            Daily Cumulative Return (%) {returnChartType === 'TWR' ? '- Time Weighted' : '- Money Weighted'}
+          </h2>
+          <div className="flex items-center space-x-2 w-full sm:w-auto">
+            <select
+              value={returnChartType}
+              onChange={(e) => setReturnChartType(e.target.value as 'TWR' | 'MWR')}
+              className="bg-[#0f172a] border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto cursor-pointer"
+            >
+              <option value="TWR">TWR (시간가중수익률)</option>
+              <option value="MWR">MWR (금액가중수익률)</option>
+            </select>
+            <select 
+              value={returnChartAccount}
+              onChange={(e) => setReturnChartAccount(e.target.value)}
+              className="bg-[#0f172a] border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto cursor-pointer"
+            >
+              <option value="ALL_ACCOUNTS">All Accounts (전체 계좌)</option>
+              {dailyAssets.accounts.map(acc => (
+                <option key={acc} value={acc}>{acc}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <p className="text-xs md:text-sm text-slate-400 mb-4 md:mb-6">
+          {returnChartType === 'TWR' ? '순수 펀드 운용 수익률 (입출금 왜곡 방지 적용)' : '투자원금 대비 단순 수익률'}
+        </p>
         <div className="h-[300px] md:h-[450px]">
-          <DailyReturnChart data={dailyAssets.data} accounts={dailyAssets.accounts} />
+          <DailyReturnChart data={dailyAssets.data} accounts={dailyAssets.accounts} returnType={returnChartType} selectedAccount={returnChartAccount} />
         </div>
       </div>
 

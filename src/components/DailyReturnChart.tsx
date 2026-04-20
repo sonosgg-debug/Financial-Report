@@ -25,7 +25,17 @@ const COLORS = [
 
 type Period = '1W' | '1M' | '3M' | 'ALL'
 
-export default function DailyReturnChart({ data, accounts }: { data: DailyAssetPoint[], accounts: string[] }) {
+export default function DailyReturnChart({ 
+  data, 
+  accounts, 
+  returnType = 'TWR', 
+  selectedAccount = 'ALL_ACCOUNTS' 
+}: { 
+  data: DailyAssetPoint[], 
+  accounts: string[],
+  returnType?: 'TWR' | 'MWR',
+  selectedAccount?: string
+}) {
   const [period, setPeriod] = useState<Period>('1M')
 
   const processedData = useMemo(() => {
@@ -51,7 +61,18 @@ export default function DailyReturnChart({ data, accounts }: { data: DailyAssetP
 
     if (slice.length === 0) return []
 
-    const linesToTrack = [...accounts.map(a => `return_${a}`), 'return_Total', 'return_KOSPI', 'return_SP500']
+    const prefix = returnType === 'TWR' ? 'return_' : 'mwr_'
+    let accountLines: string[] = []
+    let hasTotal = true
+    
+    if (selectedAccount === 'ALL_ACCOUNTS') {
+      accountLines = accounts.map(a => `${prefix}${a}`)
+    } else {
+      accountLines = [`${prefix}${selectedAccount}`]
+      hasTotal = false
+    }
+
+    const linesToTrack = [...accountLines, ...(hasTotal ? [`${prefix}Total`] : []), 'return_KOSPI', 'return_SP500']
     
     // Find the first valid value in the slice for each line to use as baseline
     const startValues: Record<string, number> = {}
@@ -67,15 +88,27 @@ export default function DailyReturnChart({ data, accounts }: { data: DailyAssetP
       
       for (const key of linesToTrack) {
         const val = pt[key] as number
-        const startVal = startValues[key]
-        if (typeof val === 'number' && typeof startVal === 'number') {
-          const rebased = (((val / 100 + 1) / (startVal / 100 + 1)) - 1) * 100
-          newPt[key] = rebased
+        if (key === 'return_KOSPI' || key === 'return_SP500' || returnType === 'TWR') {
+          // Rebase for TWR and Benchmarks
+          const startVal = startValues[key]
+          if (typeof val === 'number' && typeof startVal === 'number') {
+            const rebased = (((val / 100 + 1) / (startVal / 100 + 1)) - 1) * 100
+            newPt[key] = rebased
+          }
+        } else {
+          // For MWR, simply take the relative difference if period is not ALL?
+          // Since MWR represents total return since inception of capital, rebasing it might not be conceptually perfectly equivalent to IRR rebasing, but we can subtract start value
+          // or just show the absolute MWR since inception. Let's just track absolute MWR since inception for simplicity, or rebase it additively.
+          // Additive rebasing: (current MWR - start MWR).
+          const startVal = startValues[key]
+          if (typeof val === 'number' && typeof startVal === 'number') {
+            newPt[key] = val - startVal
+          }
         }
       }
       return newPt
     })
-  }, [data, period, accounts])
+  }, [data, period, accounts, returnType, selectedAccount])
 
 
   if (!data || data.length === 0) {
@@ -128,10 +161,8 @@ export default function DailyReturnChart({ data, accounts }: { data: DailyAssetP
               itemStyle={{ color: '#f8fafc', fontWeight: 600 }}
               formatter={(value: any, name: any) => {
                 let displayName = String(name)
-                if (displayName.startsWith('return_')) {
-                  displayName = displayName.replace('return_', '')
-                  if (displayName === 'Total') displayName = 'Total Return'
-                }
+                displayName = displayName.replace('return_', '').replace('mwr_', '')
+                if (displayName === 'Total') displayName = 'Total Return'
                 const numValue = Number(value)
                 return [`${numValue > 0 ? '+' : ''}${numValue.toFixed(2)}%`, displayName]
               }}
@@ -140,39 +171,45 @@ export default function DailyReturnChart({ data, accounts }: { data: DailyAssetP
             <Legend 
               wrapperStyle={{ paddingTop: '20px' }} 
               formatter={(value: string) => {
-                if (value.startsWith('return_')) {
-                  const cleaned = value.replace('return_', '')
-                  return cleaned === 'Total' ? 'Total (초과수익)' : cleaned
-                }
-                return value
+                const isTotal = value.endsWith('_Total')
+                let cleaned = value.replace('return_', '').replace('mwr_', '')
+                return isTotal ? 'Total (초과수익)' : cleaned
               }}
             />
             
             {/* Account Lines */}
-            {accounts.map((account, index) => (
-              <Line
-                key={`return_${account}`}
-                type="monotone"
-                dataKey={`return_${account}`}
-                name={`return_${account}`}
-                stroke={COLORS[index % COLORS.length]}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 6 }}
-              />
-            ))}
+            {(selectedAccount === 'ALL_ACCOUNTS' ? accounts : [selectedAccount]).map((account, index) => {
+              const prefix = returnType === 'TWR' ? 'return_' : 'mwr_'
+              const dataKey = `${prefix}${account}`
+              const accountOriginalIndex = accounts.indexOf(account)
+              const colorIndex = accountOriginalIndex !== -1 ? accountOriginalIndex : index
+              return (
+                <Line
+                  key={dataKey}
+                  type="monotone"
+                  dataKey={dataKey}
+                  name={dataKey}
+                  stroke={COLORS[colorIndex % COLORS.length]}
+                  strokeWidth={selectedAccount === 'ALL_ACCOUNTS' ? 2 : 3}
+                  dot={false}
+                  activeDot={{ r: selectedAccount === 'ALL_ACCOUNTS' ? 6 : 8 }}
+                />
+              )
+            })}
             
             {/* Total Line */}
-            <Line
-              key="return_Total"
-              type="monotone"
-              dataKey="return_Total"
-              name="return_Total"
-              stroke="#ef4444" // red
-              strokeWidth={4}
-              dot={false}
-              activeDot={{ r: 8 }}
-            />
+            {selectedAccount === 'ALL_ACCOUNTS' && (
+              <Line
+                key={`total_line`}
+                type="monotone"
+                dataKey={returnType === 'TWR' ? 'return_Total' : 'mwr_Total'}
+                name={returnType === 'TWR' ? 'return_Total' : 'mwr_Total'}
+                stroke="#ef4444" // red
+                strokeWidth={4}
+                dot={false}
+                activeDot={{ r: 8 }}
+              />
+            )}
 
             {/* Benchmarks */}
             <Line

@@ -110,15 +110,23 @@ export async function getDailyAssetHistory() {
   const lastKnownAvgCost: Record<string, number> = {}
   let tradeIdx = 0
 
-  // TWR State tracking
+  // TWR and MWR State tracking
   const prevValue: Record<string, number> = {}
   const cumulativeTWR: Record<string, number> = {}
+  
+  const cumulativeNetDepositsKRW: Record<string, number> = {}
+  const cumulativeNetDepositsUSD: Record<string, number> = {}
+
   for (const acc of accounts) {
     prevValue[acc] = 0
     cumulativeTWR[acc] = 1
+    cumulativeNetDepositsKRW[acc] = 0
+    cumulativeNetDepositsUSD[acc] = 0
   }
   let prevTotalValue = 0
   let cumulativeTotalTWR = 1
+  let cumulativeTotalNetDepositsKRW = 0
+  let cumulativeTotalNetDepositsUSD = 0
 
   let kospiBaseline: number | null = null
   let sp500Baseline: number | null = null
@@ -129,9 +137,14 @@ export async function getDailyAssetHistory() {
   while (iterateDate <= endIterate) {
     const dateStr = iterateDate.toISOString().split('T')[0]
 
-    const cashFlowsToday: Record<string, number> = {}
-    for (const acc of accounts) cashFlowsToday[acc] = 0
-    let totalCashFlowToday = 0
+    const cashFlowsTodayKRW: Record<string, number> = {}
+    const cashFlowsTodayUSD: Record<string, number> = {}
+    for (const acc of accounts) {
+      cashFlowsTodayKRW[acc] = 0
+      cashFlowsTodayUSD[acc] = 0
+    }
+    let totalCashFlowTodayKRW = 0
+    let totalCashFlowTodayUSD = 0
 
     // Process trades specifically on this date
     while (tradeIdx < trades.length && trades[tradeIdx].trade_date <= dateStr) {
@@ -149,12 +162,22 @@ export async function getDailyAssetHistory() {
 
       if (t.type === 'DEPOSIT') {
         cash[acc][cur] += amount
-        cashFlowsToday[acc] += isKrw ? amount : amount * currentFx
-        totalCashFlowToday += isKrw ? amount : amount * currentFx
+        if (isKrw) {
+          cashFlowsTodayKRW[acc] += amount
+          totalCashFlowTodayKRW += amount
+        } else {
+          cashFlowsTodayUSD[acc] += amount
+          totalCashFlowTodayUSD += amount
+        }
       } else if (t.type === 'WITHDRAWAL') {
         cash[acc][cur] -= amount
-        cashFlowsToday[acc] -= isKrw ? amount : amount * currentFx
-        totalCashFlowToday -= isKrw ? amount : amount * currentFx
+        if (isKrw) {
+          cashFlowsTodayKRW[acc] -= amount
+          totalCashFlowTodayKRW -= amount
+        } else {
+          cashFlowsTodayUSD[acc] -= amount
+          totalCashFlowTodayUSD -= amount
+        }
       } else if (t.type === 'BUY') {
         if (!tickerFirstDates[t.ticker]) tickerFirstDates[t.ticker] = t.trade_date
         holdings[acc][t.ticker] += qty
@@ -246,11 +269,12 @@ export async function getDailyAssetHistory() {
     }
     point['Total'] = totalValue
 
-    // Calculate True TWR for Accounts
+    // Calculate True TWR and MWR for Accounts
     for (const acc of accounts) {
       const vCurrent = point[acc] as number
       const vPrev = prevValue[acc]
-      const cf = cashFlowsToday[acc]
+      // cf evaluates today's cashflow at today's fx (for TWR rebasing)
+      const cf = cashFlowsTodayKRW[acc] + (cashFlowsTodayUSD[acc] * currentFx)
       
       let dailyReturn = 0
       if (vPrev > 0) {
@@ -260,9 +284,33 @@ export async function getDailyAssetHistory() {
       
       point[`return_${acc}`] = (cumulativeTWR[acc] - 1) * 100
       prevValue[acc] = vCurrent
+
+      // MWR Calculation - base principal incorporates fx dynamically
+      if (cf > 0) {
+        cumulativeNetDepositsKRW[acc] += cashFlowsTodayKRW[acc]
+        cumulativeNetDepositsUSD[acc] += cashFlowsTodayUSD[acc]
+      } else if (cf < 0) {
+        if (vPrev > 0) {
+          const ratio = Math.min(1, Math.abs(cf) / vPrev)
+          cumulativeNetDepositsKRW[acc] *= (1 - ratio)
+          cumulativeNetDepositsUSD[acc] *= (1 - ratio)
+        } else {
+          cumulativeNetDepositsKRW[acc] += cashFlowsTodayKRW[acc]
+          cumulativeNetDepositsUSD[acc] += cashFlowsTodayUSD[acc]
+        }
+      }
+
+      const currentNetDeposits = cumulativeNetDepositsKRW[acc] + (cumulativeNetDepositsUSD[acc] * currentFx)
+
+      if (currentNetDeposits > 0) {
+        point[`mwr_${acc}`] = (vCurrent / currentNetDeposits - 1) * 100
+      } else {
+        point[`mwr_${acc}`] = 0
+      }
     }
     
-    // Total True TWR
+    // Total True TWR and MWR
+    const totalCashFlowToday = totalCashFlowTodayKRW + (totalCashFlowTodayUSD * currentFx)
     let dailyTotalReturn = 0
     if (prevTotalValue > 0) {
       dailyTotalReturn = (totalValue - totalCashFlowToday) / prevTotalValue - 1
@@ -270,6 +318,28 @@ export async function getDailyAssetHistory() {
     cumulativeTotalTWR = cumulativeTotalTWR * (1 + dailyTotalReturn)
     point['return_Total'] = (cumulativeTotalTWR - 1) * 100
     prevTotalValue = totalValue
+
+    if (totalCashFlowToday > 0) {
+      cumulativeTotalNetDepositsKRW += totalCashFlowTodayKRW
+      cumulativeTotalNetDepositsUSD += totalCashFlowTodayUSD
+    } else if (totalCashFlowToday < 0) {
+      if (prevTotalValue > 0) {
+        const ratio = Math.min(1, Math.abs(totalCashFlowToday) / prevTotalValue)
+        cumulativeTotalNetDepositsKRW *= (1 - ratio)
+        cumulativeTotalNetDepositsUSD *= (1 - ratio)
+      } else {
+        cumulativeTotalNetDepositsKRW += totalCashFlowTodayKRW
+        cumulativeTotalNetDepositsUSD += totalCashFlowTodayUSD
+      }
+    }
+
+    const currentTotalNetDeposits = cumulativeTotalNetDepositsKRW + (cumulativeTotalNetDepositsUSD * currentFx)
+
+    if (currentTotalNetDeposits > 0) {
+      point['mwr_Total'] = (totalValue / currentTotalNetDeposits - 1) * 100
+    } else {
+      point['mwr_Total'] = 0
+    }
 
     // Calculate Benchmark TWRs
     const currentKospi = lastKnownPrice['^KS11']
