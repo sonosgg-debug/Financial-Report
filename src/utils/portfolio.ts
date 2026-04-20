@@ -25,6 +25,48 @@ async function getKoreanName(ticker: string): Promise<string | null> {
   return null;
 }
 
+async function getNaverFinanceData(ticker: string) {
+  try {
+    const isKorean = ticker.endsWith('.KS') || ticker.endsWith('.KQ') || ticker.endsWith('.ks') || ticker.endsWith('.kq');
+    if (isKorean) {
+      const naverTicker = ticker.split('.')[0];
+      const response = await fetch(`https://m.stock.naver.com/api/stock/${naverTicker}/basic`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.closePrice) {
+          return {
+            price: parseFloat(data.closePrice.replace(/,/g, '')),
+            currency: 'KRW',
+            shortName: data.stockName,
+          };
+        }
+      }
+    } else {
+      const suffixes = ['.O', '.N', '.A', ''];
+      for (const suffix of suffixes) {
+        const response = await fetch(`https://api.stock.naver.com/stock/${ticker}${suffix}/basic`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.stockEndType === 'stock' && data.closePrice) {
+            return {
+              price: parseFloat(data.closePrice.replace(/,/g, '')),
+              currency: 'USD',
+              shortName: data.stockName || data.stockNameEng,
+            };
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
 export type Holding = {
   ticker: string
   name: string
@@ -238,26 +280,33 @@ export async function getPortfolio() {
     // extract ticker from key (in case of something like 005930.KS_Default, we just want 005930.KS)
     const ticker = key.substring(0, key.lastIndexOf('_'))
     try {
+      let currentPrice: number = 0;
+      let displayName = ticker;
+      const isKorean = ticker.endsWith('.KS') || ticker.endsWith('.KQ') || ticker.endsWith('.ks') || ticker.endsWith('.kq');
+
       const quote = await yahooFinance.quote(ticker).catch(() => null) as any
-      if (!quote || !quote.regularMarketPrice) {
-        throw new Error(`Quote not found or missing price for ${ticker}`)
+      if (quote && quote.regularMarketPrice) {
+        currentPrice = quote.regularMarketPrice;
+        displayName = quote.shortName || quote.longName || ticker;
+        if (isKorean) {
+          const koName = await getKoreanName(ticker);
+          if (koName) displayName = koName;
+        }
+      } else {
+        // Fallback to Naver Finance
+        const fallback = await getNaverFinanceData(ticker);
+        if (fallback) {
+          currentPrice = fallback.price;
+          displayName = fallback.shortName;
+        } else {
+          throw new Error(`Quote not found or missing price for ${ticker}`)
+        }
       }
       
-      const currentPrice = quote.regularMarketPrice
       const currentValue = data.quantity * currentPrice
       const averageCost = data.totalCost / data.quantity
       const unrealizedReturn = currentValue - data.totalCost
       const unrealizedReturnPct = data.totalCost > 0 ? (unrealizedReturn / data.totalCost) * 100 : 0
-
-      const isKorean = ticker.endsWith('.KS') || ticker.endsWith('.KQ') || ticker.endsWith('.ks') || ticker.endsWith('.kq');
-      let displayName = quote.shortName || quote.longName || ticker;
-      
-      if (isKorean) {
-        const koName = await getKoreanName(ticker);
-        if (koName) {
-          displayName = koName;
-        }
-      }
 
       const rate = data.currency === 'USD' ? usdKrwRate : 1
 

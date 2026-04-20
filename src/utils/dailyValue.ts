@@ -36,17 +36,48 @@ export async function getDailyAssetHistory() {
   
   const fetchPromises = tickers.map(async (ticker) => {
     historicalData[ticker] = {}
+    let fetchedFromYahoo = false;
     try {
       const result = await yahooFinance.chart(ticker, { period1: startDate, period2: endDate, interval: '1d' })
       const data = result.quotes
-      for (const row of data) {
-        if (row.date && row.close) {
-          const dStr = row.date.toISOString().split('T')[0]
-          historicalData[ticker][dStr] = row.close
+      if (data && data.length > 0) {
+        for (const row of data) {
+          if (row.date && row.close) {
+            const dStr = row.date.toISOString().split('T')[0]
+            historicalData[ticker][dStr] = row.close
+          }
         }
+        fetchedFromYahoo = true;
       }
     } catch(e) {
-      console.warn(`Failed to fetch history for ${ticker}`, e)
+      console.warn(`Failed to fetch history for ${ticker} from Yahoo. Trying fallback...`);
+    }
+
+    if (!fetchedFromYahoo) {
+      const isKorean = ticker.endsWith('.KS') || ticker.endsWith('.KQ') || ticker.endsWith('.ks') || ticker.endsWith('.kq');
+      if (isKorean) {
+        const naverTicker = ticker.split('.')[0];
+        const startStr = startDate.toISOString().split('T')[0].replace(/-/g, '');
+        const endStr = endDate.toISOString().split('T')[0].replace(/-/g, '');
+        try {
+          const response = await fetch(`https://api.finance.naver.com/siseJson.naver?symbol=${naverTicker}&requestType=1&startTime=${startStr}&endTime=${endStr}&timeframe=day`);
+          if (response.ok) {
+            const text = await response.text();
+            const rows = text.split('\n').map(line => line.trim()).filter(line => line.startsWith('["'));
+            for (const rowStr of rows) {
+              const match = rowStr.match(/\["(\d{8})",\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)/);
+              if (match) {
+                const d = match[1];
+                const close = parseFloat(match[5]);
+                const formattedDate = `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}`;
+                historicalData[ticker][formattedDate] = close;
+              }
+            }
+          }
+        } catch(fallbackErr) {
+          console.warn(`Fallback also failed for ${ticker}`, fallbackErr);
+        }
+      }
     }
   })
 
