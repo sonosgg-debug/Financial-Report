@@ -6,7 +6,7 @@ import { LayoutDashboard, ArrowRightLeft, Settings, LogOut } from 'lucide-react'
 import clsx from 'clsx'
 
 const navItems = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Portfolio Overview', href: '/', icon: LayoutDashboard },
   { name: 'Trades', href: '/trades', icon: ArrowRightLeft },
   // { name: 'Settings', href: '/settings', icon: Settings }, // Settings can be added later
 ]
