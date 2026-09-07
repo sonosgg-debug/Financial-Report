@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import YahooFinance from 'yahoo-finance2'
+import { getStockDisplayName } from '@/utils/stockSearch'
 
 const yahooFinance = new YahooFinance({ validation: { logErrors: false } })
 
@@ -61,11 +62,14 @@ export async function GET(
       throw new Error('Price not found in Yahoo Finance.');
     }
 
+    const localName = getStockDisplayName(decodedTicker);
+    const shortName = localName !== decodedTicker ? localName : (quote.shortName || decodedTicker);
+
     return NextResponse.json({
       ticker: decodedTicker,
       price: currentPrice,
       currency: quote.currency,
-      shortName: quote.shortName,
+      shortName,
     })
   } catch (error: any) {
     console.warn(`Yahoo Finance failed for ${decodedTicker}: ${error.message}. Attempting fallback to Naver Finance...`);
@@ -74,11 +78,13 @@ export async function GET(
       const fallbackData = await fetchFromNaverFinance(decodedTicker);
       if (fallbackData) {
          console.log(`Fallback successful for ${decodedTicker} via Naver Finance.`);
+         const localName = getStockDisplayName(decodedTicker);
+         const shortName = localName !== decodedTicker ? localName : (fallbackData.shortName || decodedTicker);
          return NextResponse.json({
            ticker: decodedTicker,
            price: fallbackData.price,
            currency: fallbackData.currency,
-           shortName: fallbackData.shortName,
+           shortName,
          });
       }
     }

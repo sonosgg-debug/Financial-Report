@@ -1,13 +1,39 @@
 import { createClient } from '@/utils/supabase/server'
 import YahooFinance from 'yahoo-finance2'
+import { getStockDisplayName } from '@/utils/stockSearch'
 
 const yahooFinance = new YahooFinance({ validation: { logErrors: false } })
 
 async function getKoreanName(ticker: string): Promise<string | null> {
-  const match = ticker.match(/^(\d{6})/);
-  if (!match) return null;
-  const code = match[1];
+  // 1. Check local comprehensive dictionary first
+  const localName = getStockDisplayName(ticker);
+  if (localName && localName !== ticker) {
+    return localName;
+  }
 
+  // 2. Extract 6-character code (supports alphanumeric like 0168K0 or 005930)
+  let code = ticker.split('.')[0];
+  const match = ticker.match(/^([0-9A-Za-z]{6})/);
+  if (match) {
+    code = match[1];
+  }
+  if (!code) return null;
+
+  // 3. Query Naver Mobile Basic API (returns clean JSON with stockName)
+  try {
+    const apiRes = await fetch(`https://m.stock.naver.com/api/stock/${code}/basic`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      next: { revalidate: 86400 }
+    });
+    if (apiRes.ok) {
+      const data = await apiRes.json();
+      if (data && data.stockName) {
+        return data.stockName.trim();
+      }
+    }
+  } catch (e) {}
+
+  // 4. Fallback to scraping main.naver HTML
   try {
     const res = await fetch(`https://finance.naver.com/item/main.naver?code=${code}`, {
       next: { revalidate: 86400 } // 24 hours cache
@@ -237,12 +263,17 @@ export async function getPortfolio() {
       const koName = await getKoreanName(ticker);
       if (koName) displayName = koName;
     } else {
-      try {
-        const quote = await yahooFinance.quote(ticker).catch(() => null) as any
-        if (quote && (quote.shortName || quote.longName)) {
-          displayName = quote.shortName || quote.longName || ticker
-        }
-      } catch (e) {}
+      const localName = getStockDisplayName(ticker);
+      if (localName && localName !== ticker) {
+        displayName = localName;
+      } else {
+        try {
+          const quote = await yahooFinance.quote(ticker).catch(() => null) as any
+          if (quote && (quote.shortName || quote.longName)) {
+            displayName = quote.shortName || quote.longName || ticker
+          }
+        } catch (e) {}
+      }
     }
 
     const averageBuyPrice = data.totalBuyQuantity > 0 ? data.totalBuyAmount / data.totalBuyQuantity : 0
@@ -291,6 +322,11 @@ export async function getPortfolio() {
         if (isKorean) {
           const koName = await getKoreanName(ticker);
           if (koName) displayName = koName;
+        } else {
+          const localName = getStockDisplayName(ticker);
+          if (localName && localName !== ticker) {
+            displayName = localName;
+          }
         }
       } else {
         // Fallback to Naver Finance
@@ -298,6 +334,10 @@ export async function getPortfolio() {
         if (fallback) {
           currentPrice = fallback.price;
           displayName = fallback.shortName;
+          if (isKorean) {
+            const koName = await getKoreanName(ticker);
+            if (koName) displayName = koName;
+          }
         } else {
           throw new Error(`Quote not found or missing price for ${ticker}`)
         }

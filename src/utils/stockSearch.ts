@@ -164,9 +164,9 @@ export function resolveStockTicker(input: string): {
     const namePart = parenMatch[1].trim()
     const codePart = parenMatch[2].trim()
 
-    // If codePart is 6 digits
-    if (/^\d{6}$/.test(codePart)) {
-      const stock = codeMap.get(codePart)
+    // If codePart is 6 alphanumeric characters
+    if (/^[0-9A-Za-z]{6}$/.test(codePart)) {
+      const stock = codeMap.get(codePart.toUpperCase())
       if (stock) {
         return {
           ticker: stock.ticker,
@@ -203,9 +203,9 @@ export function resolveStockTicker(input: string): {
     }
   }
 
-  // 2. Check 6-digit Korean stock code
-  if (/^\d{6}$/.test(clean)) {
-    const stock = codeMap.get(clean)
+  // 2. Check 6-character Korean stock or ETF code
+  if (/^[0-9A-Za-z]{6}$/.test(clean)) {
+    const stock = codeMap.get(clean.toUpperCase())
     if (stock) {
       return {
         ticker: stock.ticker,
@@ -214,18 +214,20 @@ export function resolveStockTicker(input: string): {
         market: stock.market
       }
     }
-    // Default to .KS if not in list
-    return {
-      ticker: `${clean}.KS`,
-      name: `한국주식(${clean})`,
-      currency: 'KRW',
-      market: 'KOSPI'
+    if (/^\d{6}$/.test(clean)) {
+      // Default to .KS if not in list
+      return {
+        ticker: `${clean}.KS`,
+        name: `한국주식(${clean})`,
+        currency: 'KRW',
+        market: 'KOSPI'
+      }
     }
   }
 
   // 3. Check Korean stock ticker with .KS or .KQ
   const upperInput = clean.toUpperCase()
-  if (/^\d{6}\.(KS|KQ)$/i.test(upperInput)) {
+  if (/^[0-9A-Za-z]{6}\.(KS|KQ)$/i.test(upperInput)) {
     const code = upperInput.slice(0, 6)
     const stock = codeMap.get(code)
     return {
@@ -278,10 +280,10 @@ export function getStockDisplayName(ticker: string): string {
   const match = tickerMap.get(upper)
   if (match) return match.name
 
-  // 2. Korean 6-digit match from ticker like "005930.KS"
-  const m = upper.match(/^(\d{6})/);
+  // 2. Korean 6-char match from ticker like "005930.KS" or "0168K0.KS"
+  const m = upper.match(/^([0-9A-Za-z]{6})/);
   if (m) {
-    const stock = codeMap.get(m[1])
+    const stock = codeMap.get(m[1].toUpperCase())
     if (stock) return stock.name
   }
 
