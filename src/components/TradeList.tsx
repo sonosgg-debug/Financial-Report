@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { Pencil, Trash2 } from 'lucide-react'
 import EditTradeModal from './EditTradeModal'
 import { deleteTrade } from '@/app/(dashboard)/trades/actions'
+import { getStockDisplayName } from '@/utils/stockSearch'
 
 export default function TradeList({ trades }: { trades: any[] }) {
   const [editingTrade, setEditingTrade] = useState<any | null>(null)
@@ -60,13 +61,19 @@ export default function TradeList({ trades }: { trades: any[] }) {
             const isBuy = trade.type === 'BUY'
             const curSymbol = trade.currency === 'USD' ? '$' : '₩'
             const isKrw = trade.currency === 'KRW'
+            const displayName = getStockDisplayName(trade.ticker)
             return (
               <tr key={trade.trade_id} className="hover:bg-[#334155]/30 transition-colors text-sm">
                 <td className="px-3 py-3 md:px-6 md:py-4 text-slate-300 whitespace-nowrap">
                   {format(new Date(trade.trade_date), 'yyyy-MM-dd')}
                 </td>
                 <td className="px-3 py-3 md:px-6 md:py-4">
-                  <div className="font-bold text-white text-base md:text-lg">{trade.ticker}</div>
+                  <div className="font-bold text-white text-base md:text-lg flex items-center flex-wrap gap-x-2">
+                    <span>{displayName}</span>
+                    {displayName !== trade.ticker && (
+                      <span className="text-xs font-normal text-slate-400 font-mono">({trade.ticker})</span>
+                    )}
+                  </div>
                   <div className="flex gap-2 mt-1">
                     {trade.sector && trade.sector !== 'Uncategorized' && (
                       <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded">{trade.sector}</span>

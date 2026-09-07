@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { resolveStockTicker } from '@/utils/stockSearch'
 
 export async function addTrade(formData: FormData) {
   const supabase = await createClient()
@@ -14,7 +15,7 @@ export async function addTrade(formData: FormData) {
 
   const type = formData.get('type') as string
   let ticker = formData.get('ticker') as string || 'CASH'
-  const currency = formData.get('currency') as string
+  let currency = formData.get('currency') as string
   const price = parseFloat(formData.get('price') as string)
   let quantity = parseFloat(formData.get('quantity') as string) || 1
   const date = formData.get('date') as string
@@ -29,8 +30,10 @@ export async function addTrade(formData: FormData) {
     sector = 'Cash'
     fee = 0
   } else {
-    if (/^\d{6}$/.test(ticker)) {
-      ticker = ticker + '.KS'
+    const resolved = resolveStockTicker(ticker)
+    ticker = resolved.ticker
+    if (!currency) {
+      currency = resolved.currency
     }
   }
 
@@ -97,7 +100,7 @@ export async function updateTrade(formData: FormData) {
   const trade_id = formData.get('trade_id') as string
   const type = formData.get('type') as string
   let ticker = formData.get('ticker') as string || 'CASH'
-  const currency = formData.get('currency') as string
+  let currency = formData.get('currency') as string
   const price = parseFloat(formData.get('price') as string)
   let quantity = parseFloat(formData.get('quantity') as string) || 1
   const date = formData.get('date') as string
@@ -112,8 +115,10 @@ export async function updateTrade(formData: FormData) {
     sector = 'Cash'
     fee = 0
   } else {
-    if (/^\d{6}$/.test(ticker)) {
-      ticker = ticker + '.KS'
+    const resolved = resolveStockTicker(ticker)
+    ticker = resolved.ticker
+    if (!currency) {
+      currency = resolved.currency
     }
   }
 
