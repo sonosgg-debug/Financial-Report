@@ -19,7 +19,7 @@ export default function Sidebar() {
       <div className="md:hidden flex flex-col bg-[#111827] border-b border-slate-800 sticky top-0 z-50">
         <div className="flex items-center justify-between p-4 border-b border-slate-800/50">
           <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-            StockDash
+            Financial Report
           </h1>
           <form action="/auth/signout" method="post">
             <button
@@ -56,7 +56,7 @@ export default function Sidebar() {
       <div className="hidden md:flex w-64 h-full bg-[#111827] border-r border-slate-800 flex-col">
         <div className="p-6">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-            StockDash
+            Financial Report
           </h1>
         </div>
 

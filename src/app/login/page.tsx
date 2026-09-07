@@ -4,7 +4,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-24 bg-[#0f172a]">
       <div className="w-full max-w-md bg-[#1e293b] p-8 rounded-2xl shadow-xl border border-slate-800">
-        <h1 className="text-3xl font-bold mb-6 text-center text-white">StockDash</h1>
+        <h1 className="text-3xl font-bold mb-6 text-center text-white">Financial Report</h1>
         <form className="flex flex-col gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2" htmlFor="email">
