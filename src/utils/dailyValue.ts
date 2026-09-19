@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import YahooFinance from 'yahoo-finance2'
+import { normalizeTicker } from '@/utils/stockSearch'
 
 const yahooFinance = new YahooFinance({ validation: { logErrors: false } })
 
@@ -27,7 +28,7 @@ export async function getDailyAssetHistory() {
   const endDate = new Date()
 
   // 2. Tickers & Accounts
-  const tickers = Array.from(new Set(trades.map(t => t.ticker)))
+  const tickers = Array.from(new Set(trades.map(t => normalizeTicker(t.ticker))))
   const accounts = Array.from(new Set(trades.map(t => t.account || 'Default')))
   const needsUsd = trades.some(t => t.currency === 'USD')
 
@@ -180,6 +181,7 @@ export async function getDailyAssetHistory() {
     // Process trades specifically on this date
     while (tradeIdx < trades.length && trades[tradeIdx].trade_date <= dateStr) {
       const t = trades[tradeIdx]
+      const ticker = normalizeTicker(t.ticker)
       const acc = t.account || 'Default'
       const cur = t.currency || 'KRW'
       const qty = parseFloat(t.quantity.toString())
@@ -187,7 +189,7 @@ export async function getDailyAssetHistory() {
       const fee = parseFloat(t.fee?.toString() || '0')
       const amount = qty * price
 
-      if (!holdings[acc][t.ticker]) holdings[acc][t.ticker] = 0
+      if (!holdings[acc][ticker]) holdings[acc][ticker] = 0
 
       const isKrw = cur === 'KRW'
 
@@ -210,20 +212,20 @@ export async function getDailyAssetHistory() {
           totalCashFlowTodayUSD -= amount
         }
       } else if (t.type === 'BUY') {
-        if (!tickerFirstDates[t.ticker]) tickerFirstDates[t.ticker] = t.trade_date
-        holdings[acc][t.ticker] += qty
-        totalCostMap[acc][t.ticker] = (totalCostMap[acc][t.ticker] || 0) + amount
+        if (!tickerFirstDates[ticker]) tickerFirstDates[ticker] = t.trade_date
+        holdings[acc][ticker] += qty
+        totalCostMap[acc][ticker] = (totalCostMap[acc][ticker] || 0) + amount
         cash[acc][cur] -= (amount + fee)
       } else if (t.type === 'SELL') {
-        const curQty = holdings[acc][t.ticker] || 0
-        const avgCost = curQty > 0 ? (totalCostMap[acc][t.ticker] || 0) / curQty : 0
-        holdings[acc][t.ticker] -= qty
-        totalCostMap[acc][t.ticker] = (totalCostMap[acc][t.ticker] || 0) - (qty * avgCost)
+        const curQty = holdings[acc][ticker] || 0
+        const avgCost = curQty > 0 ? (totalCostMap[acc][ticker] || 0) / curQty : 0
+        holdings[acc][ticker] -= qty
+        totalCostMap[acc][ticker] = (totalCostMap[acc][ticker] || 0) - (qty * avgCost)
         cash[acc][cur] += (amount - fee)
       }
 
       // Avoid floating point inaccuracies close to 0
-      if (Math.abs(holdings[acc][t.ticker]) < 1e-6) holdings[acc][t.ticker] = 0
+      if (Math.abs(holdings[acc][ticker]) < 1e-6) holdings[acc][ticker] = 0
       
       tradeIdx++
     }

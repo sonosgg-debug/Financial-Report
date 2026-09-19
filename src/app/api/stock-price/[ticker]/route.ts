@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import YahooFinance from 'yahoo-finance2'
-import { getStockDisplayName } from '@/utils/stockSearch'
+import { getStockDisplayName, normalizeTicker } from '@/utils/stockSearch'
 
 const yahooFinance = new YahooFinance({ validation: { logErrors: false } })
 
@@ -54,19 +54,20 @@ export async function GET(
   try {
     const { ticker } = await params
     decodedTicker = decodeURIComponent(ticker)
+    const targetTicker = normalizeTicker(decodedTicker)
 
-    const quote = await yahooFinance.quote(decodedTicker)
+    const quote = await yahooFinance.quote(targetTicker)
     const currentPrice = (quote as any).regularMarketPrice
 
     if (!currentPrice) {
       throw new Error('Price not found in Yahoo Finance.');
     }
 
-    const localName = getStockDisplayName(decodedTicker);
-    const shortName = localName !== decodedTicker ? localName : (quote.shortName || decodedTicker);
+    const localName = getStockDisplayName(targetTicker);
+    const shortName = localName !== targetTicker ? localName : (quote.shortName || targetTicker);
 
     return NextResponse.json({
-      ticker: decodedTicker,
+      ticker: targetTicker,
       price: currentPrice,
       currency: quote.currency,
       shortName,
@@ -75,13 +76,14 @@ export async function GET(
     console.warn(`Yahoo Finance failed for ${decodedTicker}: ${error.message}. Attempting fallback to Naver Finance...`);
     
     if (decodedTicker) {
-      const fallbackData = await fetchFromNaverFinance(decodedTicker);
+      const targetTicker = normalizeTicker(decodedTicker)
+      const fallbackData = await fetchFromNaverFinance(targetTicker);
       if (fallbackData) {
-         console.log(`Fallback successful for ${decodedTicker} via Naver Finance.`);
-         const localName = getStockDisplayName(decodedTicker);
-         const shortName = localName !== decodedTicker ? localName : (fallbackData.shortName || decodedTicker);
+         console.log(`Fallback successful for ${targetTicker} via Naver Finance.`);
+         const localName = getStockDisplayName(targetTicker);
+         const shortName = localName !== targetTicker ? localName : (fallbackData.shortName || targetTicker);
          return NextResponse.json({
-           ticker: decodedTicker,
+           ticker: targetTicker,
            price: fallbackData.price,
            currency: fallbackData.currency,
            shortName,

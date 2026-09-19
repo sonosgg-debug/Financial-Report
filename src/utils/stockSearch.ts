@@ -64,6 +64,18 @@ const STOCKS: StockItemInternal[] = (stocksData as StockItem[]).map(stock => ({
   isPopular: POPULAR_TICKERS.has(stock.ticker.toUpperCase())
 }))
 
+// Common ticker aliases / typos (e.g. INTL -> INTC for Intel)
+export const TICKER_ALIASES: Record<string, string> = {
+  'INTL': 'INTC',
+  'FB': 'META',
+}
+
+export function normalizeTicker(ticker: string): string {
+  if (!ticker) return ticker
+  const upper = ticker.toUpperCase().trim()
+  return TICKER_ALIASES[upper] || upper
+}
+
 // Lookup maps for fast access
 const codeMap = new Map<string, StockItemInternal>()
 const nameMap = new Map<string, StockItemInternal>()
@@ -72,6 +84,9 @@ const tickerMap = new Map<string, StockItemInternal>()
 for (const stock of STOCKS) {
   codeMap.set(stock.code.toUpperCase(), stock)
   nameMap.set(stock.name.toLowerCase().trim(), stock)
+  if (stock.enName) {
+    nameMap.set(stock.enName.toLowerCase().trim(), stock)
+  }
   tickerMap.set(stock.ticker.toUpperCase(), stock)
 }
 
@@ -93,7 +108,19 @@ export function searchStocks(query: string, limit = 20): StockItem[] {
   const startsWithMatches: StockItemInternal[] = []
   const containsMatches: StockItemInternal[] = []
 
+  // If query is an alias (e.g. INTL -> INTC for Intel), prioritize the target stock
+  if (TICKER_ALIASES[qUpper]) {
+    const targetCode = TICKER_ALIASES[qUpper]
+    const aliasedStock = tickerMap.get(targetCode) || codeMap.get(targetCode)
+    if (aliasedStock) {
+      exactMatches.push(aliasedStock)
+    }
+  }
+
   for (const stock of STOCKS) {
+    if (exactMatches.some(m => m.ticker === stock.ticker)) {
+      continue
+    }
     const sName = stock.name.toLowerCase()
     const sCode = stock.code.toUpperCase()
     const sTicker = stock.ticker.toUpperCase()
@@ -184,7 +211,7 @@ export function resolveStockTicker(input: string): {
     }
 
     // If codePart is a US ticker or already has suffix
-    const upperCode = codePart.toUpperCase()
+    const upperCode = normalizeTicker(codePart.toUpperCase())
     const stock = tickerMap.get(upperCode) || codeMap.get(upperCode)
     if (stock) {
       return {
@@ -249,8 +276,9 @@ export function resolveStockTicker(input: string): {
     }
   }
 
-  // 5. Check if it's an existing ticker in stock list
-  const tickerMatch = tickerMap.get(upperInput)
+  // 5. Check if it's an existing ticker (or alias) in stock list
+  const normalizedTicker = normalizeTicker(upperInput)
+  const tickerMatch = tickerMap.get(normalizedTicker)
   if (tickerMatch) {
     return {
       ticker: tickerMatch.ticker,
@@ -274,7 +302,7 @@ export function resolveStockTicker(input: string): {
  */
 export function getStockDisplayName(ticker: string): string {
   if (!ticker || ticker === 'CASH') return '현금'
-  const upper = ticker.toUpperCase()
+  const upper = normalizeTicker(ticker.toUpperCase())
 
   // 1. Direct ticker match
   const match = tickerMap.get(upper)

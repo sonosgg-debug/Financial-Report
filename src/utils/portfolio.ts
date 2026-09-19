@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import YahooFinance from 'yahoo-finance2'
-import { getStockDisplayName } from '@/utils/stockSearch'
+import { getStockDisplayName, normalizeTicker } from '@/utils/stockSearch'
 
 const yahooFinance = new YahooFinance({ validation: { logErrors: false } })
 
@@ -169,7 +169,8 @@ export async function getPortfolio() {
   let netInvestedUSD = 0
 
   for (const trade of trades) {
-    const { ticker, type, quantity, price, currency, sector, account, fee } = trade
+    const { ticker: rawTicker, type, quantity, price, currency, sector, account, fee } = trade
+    const ticker = normalizeTicker(rawTicker)
     const acc = account || 'Default'
     const cur = currency || 'KRW'
     

@@ -2,7 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { resolveStockTicker } from '@/utils/stockSearch'
+import { resolveStockTicker, TICKER_ALIASES } from '@/utils/stockSearch'
 
 export async function addTrade(formData: FormData) {
   const supabase = await createClient()
@@ -38,11 +38,19 @@ export async function addTrade(formData: FormData) {
   }
 
   if (type === 'SELL') {
+    const targetTicker = ticker.toUpperCase()
+    const possibleTickers = [targetTicker]
+    for (const [alias, target] of Object.entries(TICKER_ALIASES)) {
+      if (target === targetTicker) {
+        possibleTickers.push(alias)
+      }
+    }
+
     const { data: pastTrades, error: fetchError } = await supabase
       .from('trades')
       .select('type, quantity')
       .eq('id', user.id)
-      .eq('ticker', ticker.toUpperCase())
+      .in('ticker', possibleTickers)
       .eq('account', account)
 
     if (fetchError) {
